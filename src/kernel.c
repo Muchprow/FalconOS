@@ -2,7 +2,6 @@ typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 
-// --- ПОРТЫ ---
 static inline uint8_t inb(uint16_t port) {
     uint8_t ret;
     __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
@@ -13,7 +12,6 @@ static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
-// --- ВИДЕО ---
 void k_print(const char* str, uint8_t color, int x, int y) {
     volatile char* video = (volatile char*)(0xB8000 + (y * 80 + x) * 2);
     while (*str) {
@@ -33,7 +31,6 @@ void draw_rect(int x, int y, int width, int height, uint8_t bg_color) {
     }
 }
 
-// --- IDT ---
 struct idt_entry {
     uint16_t base_low;
     uint16_t selector;
@@ -57,8 +54,6 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
     idt[num].zero = 0;
     idt[num].flags = flags;
 }
-
-// --- ОБРАБОТЧИКИ ---
 
 void fault_handler() {
     k_print(" !!! CPU PANIC: EXCEPTION !!! ", 0x4F, 25, 0);
@@ -86,7 +81,6 @@ void keyboard_handler() {
     outb(0x20, 0x20);
 }
 
-// Ассемблерные заглушки
 __asm__(
     ".align 16\n"
     ".global kbd_handler_asm\n"
@@ -100,7 +94,7 @@ __asm__(
     "timer_handler_asm:\n"
     "pushal\n"
     "mov $0x20, %al\n"
-    "out %al, $0x20\n" // Шлем EOI таймеру, чтобы он не вешал систему
+    "out %al, $0x20\n" 
     "popal\n"
     "iret\n"
 
@@ -109,8 +103,6 @@ __asm__(
     "call fault_handler\n"
     "iret\n"
 );
-
-// --- ЗАПУСК ---
 
 void pic_remap() {
     outb(0x20, 0x11); outb(0xA0, 0x11);
