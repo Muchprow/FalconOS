@@ -1,0 +1,49 @@
+# FalconOS
+
+A lightweight operating system designed from scratch for low-end hardware. Features a Windows-like interface with powerful OS capabilities. Perfect for reviving old computers and learning OS development.
+
+## 🎯 Project Goals
+
+- **Lightweight**: Optimized for systems with minimal resources
+- **Performance**: Runs smoothly on hardware from 2005-2015 era
+- **User-Friendly**: Windows-like interface for ease of use
+- **Educational**: Learn OS development from the ground up
+- **Open Source**: GPL v3 licensed, community-driven
+
+## 📋 Current Status
+
+**Progress: ~1-2%**
+
+- ✅ Basic bootloader (Multiboot compatible)
+- ✅ Kernel initialization
+- ✅ Screen/graphics output
+- ✅ CPU interrupts handling
+- 🔄 Memory management (WIP)
+- ⏳ File system (planned)
+- ⏳ Shell/CLI (planned)
+- ⏳ GUI/Desktop environment (planned)
+
+## 🛠️ Requirements
+
+### Windows
+- **Clang** - C compiler
+- **NASM** - Assembler
+- **LLD** - Linker (part of LLVM)
+- **QEMU** - Emulator for testing
+
+### Linux/macOS
+- `clang` or `gcc`
+- `nasm`
+- `lld` or `ld`
+- `qemu-system-x86_64`
+
+**Installation:**
+```bash
+# Ubuntu/Debian
+sudo apt install clang nasm llvm qemu-system-x86
+
+# macOS (with Homebrew)
+brew install clang nasm llvm qemu
+
+# Arch Linux
+sudo pacman -S clang nasm llvm qemu
