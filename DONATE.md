@@ -7,7 +7,7 @@ FalconOS is an open-source project developed by one person in their free time. I
 ### 💵 Donate
 Your donation helps keep the project alive and allows the developer to spend more time on FalconOS development.
 
-- **Buy Me a Coffee**: [Coming soon]
+- **Donate**: [Coming soon]
 
 ### ⭐ Show Your Support
 - Star the repository on GitHub
