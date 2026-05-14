@@ -11,7 +11,7 @@ A lightweight operating system designed from scratch for low-end hardware. Perfe
 
 ## 📋 Current Status
 
-**Progress: ~1-2%**
+**Progress: ~25-50%**
 
 - ✅ Basic bootloader (Multiboot compatible)
 - ✅ Kernel initialization
