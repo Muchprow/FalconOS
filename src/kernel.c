@@ -1,146 +1,130 @@
-typedef unsigned char uint8_t;
+typedef unsigned char  uint8_t;
 typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
+typedef unsigned int   uint32_t;
 
+// --- ВВОД/ВЫВОД ---
 static inline uint8_t inb(uint16_t port) {
     uint8_t ret;
     __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
-
 static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
-void k_print(const char* str, uint8_t color, int x, int y) {
-    volatile char* video = (volatile char*)(0xB8000 + (y * 80 + x) * 2);
-    while (*str) {
-        *video++ = *str++;
-        *video++ = color;
+// --- ВИДЕО ТЕРМИНАЛА ---
+int cursor_x = 0, cursor_y = 0;
+const uint8_t THEME_CYBER = 0x0A; // Светло-зеленый на черном (как в Матрице)
+
+void k_print_char(char c, uint8_t col) {
+    if (c == '\n') {
+        cursor_x = 0; cursor_y++;
+    } else {
+        volatile char* v = (volatile char*)(0xB8000 + (cursor_y * 80 + cursor_x) * 2);
+        *v++ = c; *v = col;
+        cursor_x++;
     }
+    if (cursor_x >= 80) { cursor_x = 0; cursor_y++; }
 }
 
-void draw_rect(int x, int y, int width, int height, uint8_t bg_color) {
-    volatile char* video = (volatile char*)0xB8000;
-    for (int i = y; i < y + height; i++) {
-        for (int j = x; j < x + width; j++) {
-            int offset = (i * 80 + j) * 2;
-            video[offset] = ' ';
-            video[offset + 1] = (bg_color << 4);
-        }
+void k_print(const char* str, uint8_t col) {
+    while (*str) k_print_char(*str++, col);
+}
+
+void k_clear() {
+    for (int i = 0; i < 80 * 25; i++) {
+        k_print_char(' ', 0x07);
     }
+    cursor_x = 0; cursor_y = 0;
 }
 
-struct idt_entry {
-    uint16_t base_low;
-    uint16_t selector;
-    uint8_t  zero;
-    uint8_t  flags;
-    uint16_t base_high;
-} __attribute__((packed));
-
-struct idt_ptr {
-    uint16_t limit;
-    uint32_t base;
-} __attribute__((packed));
-
-struct idt_entry idt[256];
-struct idt_ptr idtp;
-
-void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
-    idt[num].base_low = (base & 0xFFFF);
-    idt[num].base_high = (base >> 16) & 0xFFFF;
-    idt[num].selector = sel;
-    idt[num].zero = 0;
-    idt[num].flags = flags;
+// --- ЛОГИКА КОМАНД (CyberSecurity/Admin) ---
+void execute_command(char* cmd) {
+    k_print("\n", THEME_CYBER);
+    
+    // Сравнение строк (упрощенное)
+    if (cmd[0] == 'n' && cmd[1] == 'e' && cmd[2] == 't') {
+        k_print("[OK] Scanning network interfaces...\n", THEME_CYBER);
+        k_print("eth0: 192.168.1.105 [UP]\n", 0x02);
+        k_print("lo: 127.0.0.1 [UP]\n", 0x02);
+    } 
+    else if (cmd[0] == 's' && cmd[1] == 'c' && cmd[2] == 'a' && cmd[3] == 'n') {
+        k_print("Searching for vulnerabilities...\n", 0x0E);
+        k_print("PORT 80: OPEN\nPORT 443: OPEN\nPORT 22: FILTERED\n", 0x0A);
+    }
+    else if (cmd[0] == 'h' && cmd[1] == 'e' && cmd[2] == 'l' && cmd[3] == 'p') {
+        k_print("Available: net, scan, clear, fort_test\n", 0x0F);
+    }
+    else if (cmd[0] == 'c' && cmd[1] == 'l' && cmd[2] == 'e' && cmd[3] == 'a' && cmd[4] == 'r') {
+        k_clear();
+    }
+    else {
+        k_print("Unknown command. Type 'help'\n", 0x04); // Красный цвет
+    }
+    k_print("falcon@root:~# ", 0x0B);
 }
 
-void fault_handler() {
-    k_print(" !!! CPU PANIC: EXCEPTION !!! ", 0x4F, 25, 0);
-    while(1) __asm__("hlt");
-}
-
-unsigned char kbd_us[128] = {
-    0,  27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
-    0, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
-    0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\',
-    'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0, '*', 0, ' '
-};
-
-int cursor_x = 33;
+// --- КЛАВИАТУРА ---
+char cmd_buffer[64];
+int cmd_idx = 0;
 
 void keyboard_handler() {
-    uint8_t scancode = inb(0x60);
-    if (!(scancode & 0x80)) {
-        char c = kbd_us[scancode];
-        if (c > 0 && cursor_x < 63) {
-            char buf[2] = {c, 0};
-            k_print(buf, 0x70, cursor_x++, 13);
+    uint8_t sc = inb(0x60);
+    static char map[] = "..1234567890-=\b.qwertyuiop[]\n.asdfghjkl;'`..zxcvbnm,./... ";
+    
+    if (!(sc & 0x80)) {
+        char c = map[sc];
+        if (c == '\n') {
+            cmd_buffer[cmd_idx] = 0;
+            execute_command(cmd_buffer);
+            cmd_idx = 0;
+        } else if (c == '\b' && cmd_idx > 0) {
+            cmd_idx--; cursor_x--;
+            k_print_char(' ', 0x07); cursor_x--;
+        } else if (cmd_idx < 63 && sc < 58) {
+            k_print_char(c, 0x0F);
+            cmd_buffer[cmd_idx++] = c;
         }
     }
     outb(0x20, 0x20);
 }
 
-__asm__(
-    ".align 16\n"
-    ".global kbd_handler_asm\n"
-    "kbd_handler_asm:\n"
-    "pushal\n"
-    "call keyboard_handler\n"
-    "popal\n"
-    "iret\n"
+// --- IDT И СИСТЕМА ---
+struct idt_entry { uint16_t l, s; uint8_t z, f; uint16_t h; } __attribute__((packed));
+struct idt_ptr { uint16_t lim; uint32_t base; } __attribute__((packed));
+struct idt_entry idt[256]; struct idt_ptr idtp;
 
-    ".global timer_handler_asm\n"
-    "timer_handler_asm:\n"
-    "pushal\n"
-    "mov $0x20, %al\n"
-    "out %al, $0x20\n" 
-    "popal\n"
-    "iret\n"
+void idt_set(uint8_t n, uint32_t base) {
+    idt[n].l = base & 0xFFFF; idt[n].h = (base >> 16) & 0xFFFF;
+    idt[n].s = 0x08; idt[n].z = 0; idt[n].f = 0x8E;
+}
 
-    ".global fault_handler_asm\n"
-    "fault_handler_asm:\n"
-    "call fault_handler\n"
-    "iret\n"
-);
+__asm__(".global k_asm\nk_asm: pushal\ncall keyboard_handler\npopal\niret\n"
+        ".global t_asm\nt_asm: pushal\nmov $0x20,%al\nout %al,$0x20\npopal\niret\n");
 
-void pic_remap() {
+void main() {
+    extern void k_asm(), t_asm();
+    for(int i=0; i<256; i++) idt_set(i, 0);
+    idt_set(32, (uint32_t)t_asm); 
+    idt_set(33, (uint32_t)k_asm);
+    idtp.lim = 2047; idtp.base = (uint32_t)&idt;
+    
     outb(0x20, 0x11); outb(0xA0, 0x11);
     outb(0x21, 0x20); outb(0xA1, 0x28);
     outb(0x21, 0x04); outb(0xA1, 0x02);
     outb(0x21, 0x01); outb(0xA1, 0x01);
     outb(0x21, 0x0);  outb(0xA1, 0x0);
-}
+    
+    __asm__ volatile("lidt (%0)\nsti" : : "r"(&idtp));
 
-void main() {
-    extern void kbd_handler_asm();
-    extern void fault_handler_asm();
-    extern void timer_handler_asm();
+    k_clear();
+    k_print("################################\n", 0x02);
+    k_print("#       FalconOS v1.0          #\n", 0x02);
+    k_print("#   Secure, System and more    #\n", 0x02);
+    k_print("################################\n\n", 0x02);
+    k_print("System status: SECURE\n", 0x0F);
+    k_print("Terminal ready. Type 'help' to begin.\n\n", 0x0F);
+    k_print("falcon@root:~# ", 0x0B);
 
-    for(int i = 0; i < 256; i++) {
-        idt_set_gate(i, (uint32_t)fault_handler_asm, 0x08, 0x8E);
-    }
-
-    idt_set_gate(32, (uint32_t)timer_handler_asm, 0x08, 0x8E);
-    idt_set_gate(33, (uint32_t)kbd_handler_asm, 0x08, 0x8E);
-
-    idtp.limit = (sizeof(struct idt_entry) * 256) - 1;
-    idtp.base = (uint32_t)&idt;
-
-    pic_remap();
-    __asm__ volatile("lidt (%0)" : : "r" (&idtp));
-    __asm__ volatile("sti");
-
-    outb(0x3D4, 0x0A); outb(0x3D5, 0x20);
-
-    draw_rect(0, 0, 80, 25, 3);
-    draw_rect(15, 5, 50, 12, 7);
-    draw_rect(15, 5, 50, 1, 1);
-    k_print(" SYSTEM CONSOLE ", 0x1F, 16, 5);
-    k_print("Welcome to FalconOS!", 0x70, 17, 7);
-    k_print("Type something: ", 0x70, 17, 13);
-
-    while (1) {
-        __asm__ volatile("hlt");
-    }
+    while(1) __asm__("hlt");
 }

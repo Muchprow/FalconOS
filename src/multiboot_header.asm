@@ -9,10 +9,13 @@ global _start
 extern main
 
 _start:
+    ; Устанавливаем стек в безопасное место
     mov esp, stack_top
     
+    ; Передаем управление в Си
     call main
     
+    ; Если ядро решит выйти (чего не должно быть), зацикливаем
     cli
 .hlt:
     hlt
@@ -21,5 +24,5 @@ _start:
 section .bss
 align 16
 stack_bottom:
-    resb 16384 
+    resb 16384 ; Выделяем 16 КБ под стек
 stack_top:
