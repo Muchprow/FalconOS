@@ -20,6 +20,7 @@ A lightweight operating system designed from scratch for low-end hardware. Perfe
 - ✅ Shell/CLI (planned)
 - 🔄 Memory management (WIP)
 - ⏳ File system (planned)
+- ⏳ Addon Manager (planned)
 
 ## 🛠️ Requirements
 
