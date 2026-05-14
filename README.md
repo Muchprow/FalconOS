@@ -1,6 +1,6 @@
 # FalconOS
 
-A lightweight operating system designed from scratch for low-end hardware. Features a Windows-like interface with powerful OS capabilities. Perfect for reviving old computers and learning OS development.
+A lightweight operating system designed from scratch for low-end hardware. Perfect for reviving old computers and learning OS development.
 
 ## 🎯 Project Goals
 
